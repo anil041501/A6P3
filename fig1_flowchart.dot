@@ -1,0 +1,67 @@
+digraph G {
+  graph [rankdir=TB, fontname="Helvetica", fontsize=12, nodesep=0.12, ranksep=0.16, compound=true, newrank=true, pad=0.03];
+  node  [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=12, margin="0.05,0.03", penwidth=1.0, color="#555555", fillcolor="#eeeeee", height=0.3];
+  edge  [fontname="Helvetica", fontsize=11, arrowsize=0.55, color="#444444"];
+
+  subgraph cluster_data {
+    label="1 Data"; labeljust=l; style="rounded,filled"; fillcolor="#f4f4f4"; color="#bbbbbb";
+    log  [label="MES event log\n26,321 events"];
+    wo   [label="Order table\nattrs, due D"];
+  }
+
+  subgraph cluster_prep {
+    label="2 Prefix encoding"; labeljust=r; style="rounded,filled"; fillcolor="#f1f5fa"; color="#b6c7da";
+    clean [label="Repair +\nimpute"];
+    ckpt  [label="τ = ρ·D\nEq. (1)"];
+    run   [label="T > τ ?", shape=diamond, style="filled", fillcolor="#ffffff", margin="0.01,0.01", fontsize=11];
+    drop  [label="skip", fillcolor="#ffffff", fontsize=11];
+    tok   [label="Event tokens\nact, res, times,\nin-progress"];
+    ctx   [label="Context s\nWIP, time,\nslack"];
+  }
+
+  subgraph cluster_tcn {
+    label="3 Proposed TCN"; labeljust=l; style="rounded,filled"; fillcolor="#fbeeec"; color="#d9a39b";
+    node [fillcolor="#f6d5d0", color="#c0392b"];
+    emb  [label="Embed + 1×1\nEq. (3)"];
+    blk  [label="Causal dilated\nblocks d=1,2,4\nEqs. (4)-(5)"];
+    side [label="MLP ψ(s)"];
+    cat  [label="[h_T ; ψ] → φ\nEq. (6)"];
+    hr   [label="r̂ (L1)"];
+    hc   [label="p̂ (BCE)"];
+    stop [label="8 epochs\nno gain?", shape=diamond, style="filled", fillcolor="#ffffff", margin="0.01,0.01", fontsize=11];
+  }
+
+  subgraph cluster_eval {
+    label="4 Evaluation"; labeljust=l; style="rounded,filled"; fillcolor="#f3f3f3"; color="#bbbbbb";
+    hot  [label="CART waiting\nhotspots"];
+    wif  [label="What-if ΔW_h\nEq. (9)"];
+    base [label="PMA, LGBM,\nMLP"];
+    met  [label="MAE, PR-AUC,\nF1, Eq. (8)"];
+  }
+
+  log -> clean; wo -> clean;
+  clean -> ckpt;
+  ckpt -> run;
+  run -> drop [label="no"];
+  run -> tok [label="yes"]; run -> ctx;
+  tok -> emb -> blk;
+  ctx -> side;
+  blk -> cat; side -> cat;
+  cat -> hr; cat -> hc;
+  hr -> stop [label="Eq. (7)"]; hc -> stop;
+  stop -> emb [label="no", style=dashed, constraint=false, color="#c0392b", fontcolor="#c0392b"];
+  stop -> met [label="yes"];
+  base -> met;
+  hot -> wif;
+  wif -> base [style=invis];
+
+  {rank=same; log; wo;}
+  {rank=same; clean; ckpt;}
+  {rank=same; run; drop;}
+  {rank=same; tok; ctx;}
+  {rank=same; emb; side; hot;}
+  {rank=same; blk; wif;}
+  {rank=same; cat; base;}
+  {rank=same; hr; hc;}
+  {rank=same; stop; met;}
+}
